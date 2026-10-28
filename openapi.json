@@ -1,0 +1,2843 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "OpenAsy Metrics API",
+    "version": "0.1.0",
+    "summary": "The numbers behind your systems: scraped, kept in VictoriaMetrics, graphed and queried with PromQL.",
+    "description": "Every screen of Metrics uses this API, and so can your scripts (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nPromQL is answered under `/prometheus` exactly as Prometheus answers it, so Grafana, vmalert and any Prometheus client take `https://metrics.example.com/prometheus` as a Prometheus data source, with an API token as bearer token. Samples are pushed with `METRICS_INGEST_TOKEN`: OpenTelemetry metrics to `/opentelemetry/v1/metrics`, Prometheus remote write to `/prometheus/api/v1/write`. Everything else takes the session of a signed-in person or an API token, and each operation names the role it needs (`x-openasy-role`: viewer, editor, admin; ADR 0003).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This Metrics"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Targets",
+      "description": "What is scraped, and whether it answers."
+    },
+    {
+      "name": "Dashboards",
+      "description": "Panels of PromQL."
+    },
+    {
+      "name": "Metric list",
+      "description": "Every metric name with its type and series."
+    },
+    {
+      "name": "Prometheus API",
+      "description": "PromQL, as Prometheus answers it, for Grafana and other clients."
+    },
+    {
+      "name": "Push",
+      "description": "Samples sent in: OpenTelemetry and Prometheus remote write."
+    },
+    {
+      "name": "Product",
+      "description": "Version and overview of this Metrics."
+    }
+  ],
+  "paths": {
+    "/api/v1/targets": {
+      "get": {
+        "operationId": "listTargets",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "Targets and their health",
+        "description": "Needs the viewer role. Every address scraped: the OpenAsy products, Metrics itself and each job's, with its last scrape and error.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TargetList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "Scrape jobs",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "post": {
+        "operationId": "createJob",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "Add a scrape job",
+        "description": "Needs the admin role. It is scraped from now on.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "operationId": "getJob",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "A scrape job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The job's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "put": {
+        "operationId": "updateJob",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "Change a scrape job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The job's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewJob"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin",
+        "description": "Needs the admin role."
+      },
+      "delete": {
+        "operationId": "deleteJob",
+        "tags": [
+          "Targets"
+        ],
+        "summary": "Delete a scrape job",
+        "description": "Needs the admin role. It is not scraped from now on; what it brought is kept for the retention.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The job's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/dashboards": {
+      "get": {
+        "operationId": "listDashboards",
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Dashboards",
+        "description": "Needs the viewer role. People's, then the ones that come with Metrics.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "createDashboard",
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Add a dashboard",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDashboard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor",
+        "description": "Needs the editor role."
+      }
+    },
+    "/api/v1/dashboards/{id}": {
+      "get": {
+        "operationId": "getDashboard",
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "A dashboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dashboard's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "put": {
+        "operationId": "updateDashboard",
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Change a dashboard",
+        "description": "Needs the editor role. One that comes with Metrics answers 409.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dashboard's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDashboard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      },
+      "delete": {
+        "operationId": "deleteDashboard",
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Delete a dashboard",
+        "description": "Needs the editor role. One that comes with Metrics answers 409.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The dashboard's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/metric-names": {
+      "get": {
+        "operationId": "listMetricNames",
+        "tags": [
+          "Metric list"
+        ],
+        "summary": "Every metric name",
+        "description": "Needs the viewer role. With its type and help, as its target sent them, and its series now.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricNameList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/query": {
+      "get": {
+        "operationId": "prometheusQuery",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Instant query",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusQueryPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Instant query (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/query_range": {
+      "get": {
+        "operationId": "prometheusQueryRange",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Range query",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusQueryRangePost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Range query (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/series": {
+      "get": {
+        "operationId": "prometheusSeries",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Series that match",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusSeriesPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Series that match (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/labels": {
+      "get": {
+        "operationId": "prometheusLabels",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Label names",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusLabelsPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Label names (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/label/{name}/values": {
+      "get": {
+        "operationId": "prometheusLabelValues",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Values of a label",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "The label, such as job or __name__.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusLabelValuesPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Values of a label (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "The label, such as job or __name__.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/metadata": {
+      "get": {
+        "operationId": "prometheusMetadata",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Type and help of each metric",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusMetadataPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Type and help of each metric (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/status/buildinfo": {
+      "get": {
+        "operationId": "prometheusBuildInfo",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Build information, which Grafana reads",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      },
+      "post": {
+        "operationId": "prometheusBuildInfoPost",
+        "tags": [
+          "Prometheus API"
+        ],
+        "summary": "Build information, which Grafana reads (form)",
+        "description": "Needs the viewer role. Prometheus' own parameters and answer, passed to VictoriaMetrics as they are; errors in the query come back in Prometheus' shape.",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prometheus' answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "description": "The query could not be run, with why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/prometheus/api/v1/write": {
+      "post": {
+        "operationId": "remoteWrite",
+        "tags": [
+          "Push"
+        ],
+        "summary": "Prometheus remote write",
+        "description": "For a Prometheus or an agent that keeps its own scraping: `remote_write` to this address, snappy-compressed protobuf. With `METRICS_INGEST_TOKEN`, or an API token with the editor role.",
+        "security": [
+          {
+            "ingestToken": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored."
+          },
+          "204": {
+            "description": "Stored."
+          },
+          "400": {
+            "description": "The body could not be read, with why.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/opentelemetry/v1/metrics": {
+      "post": {
+        "operationId": "pushOtlp",
+        "tags": [
+          "Push"
+        ],
+        "summary": "OpenTelemetry metrics",
+        "description": "OTLP over HTTP with protobuf, as a collector's otlphttp exporter sends it to `https://metrics.example.com/opentelemetry`; gzip is taken. Names become Prometheus names, and service.name becomes the label service_name. With `METRICS_INGEST_TOKEN`, or an API token with the editor role.",
+        "security": [
+          {
+            "ingestToken": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored."
+          },
+          "204": {
+            "description": "Stored."
+          },
+          "400": {
+            "description": "The body could not be read, with why.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "413": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "operationId": "getSummary",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Overview",
+        "description": "Needs the viewer role. Storage, targets by health and what is set up, for the first screen.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "listProducts",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Other products of this install",
+        "responses": {
+          "200": {
+            "description": "From OPENASY_PRODUCTS, for the product switcher.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "getVersion",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Version",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The running version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "liveness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readiness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Readiness",
+        "description": "Ready while the database and VictoriaMetrics answer.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready to serve.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database or VictoriaMetrics is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Prometheus metrics",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Metrics in the Prometheus text format.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-openasy-session",
+        "description": "The browser session after signing in (`openasy-session` when Metrics runs on plain http://localhost). Requests that change something must come from the Metrics origin."
+      },
+      "apiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token created under Settings → API tokens (`oa_metrics_...`): one role, always an expiry (ADR 0003). Grafana sends one as its data source's bearer token."
+      },
+      "adminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Only when Metrics is started by its tests or a local script: one shared token with the admin role. A production install does not have it."
+      },
+      "ingestToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "`METRICS_INGEST_TOKEN`: for OpenTelemetry collectors and Prometheus remote write. It can push samples, nothing else."
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "An error, as RFC 9457 Problem Details.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid-token",
+              "invalid-json",
+              "invalid-body",
+              "conflict",
+              "not-found",
+              "not-configured",
+              "payload-too-large",
+              "storage-unavailable",
+              "internal-error",
+              "unauthenticated",
+              "invalid-credentials",
+              "mfa-required",
+              "mfa-setup-required",
+              "forbidden",
+              "cross-site",
+              "rate-limited"
+            ],
+            "description": "Stable; match on this."
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "required": [
+          "product",
+          "version"
+        ],
+        "properties": {
+          "product": {
+            "const": "metrics"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The product, as OpenAsy names it.",
+            "examples": [
+              "infrastructure"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The address people open it at.",
+            "examples": [
+              "https://infra.example.com"
+            ]
+          }
+        }
+      },
+      "ProductList": {
+        "type": "object",
+        "required": [
+          "products"
+        ],
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductLink"
+            }
+          }
+        }
+      },
+      "Target": {
+        "type": "object",
+        "required": [
+          "job",
+          "url",
+          "product",
+          "jobId",
+          "labels",
+          "health",
+          "lastScrape",
+          "durationMs",
+          "samples",
+          "error"
+        ],
+        "properties": {
+          "job": {
+            "type": "string",
+            "description": "The job; `openasy` for the OpenAsy products Metrics scrapes itself."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address scraped."
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The OpenAsy product, for targets of the job openasy."
+          },
+          "jobId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The job's id, for a job people added."
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The labels of every series it brings, but job."
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down",
+              "unknown"
+            ],
+            "description": "Of the last scrape; unknown before the first."
+          },
+          "lastScrape": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Samples the last scrape brought."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the last scrape failed."
+          }
+        }
+      },
+      "TargetList": {
+        "type": "object",
+        "required": [
+          "targets"
+        ],
+        "properties": {
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            }
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "urls",
+          "intervalSeconds",
+          "labels",
+          "auth",
+          "username",
+          "hasSecret",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "intervalSeconds": {
+            "type": "integer"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "auth": {
+            "type": "string",
+            "enum": [
+              "none",
+              "bearer",
+              "basic"
+            ]
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasSecret": {
+            "type": "boolean",
+            "description": "Whether a password or bearer token is kept. It is never returned (ADR 0021)."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "JobList": {
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            }
+          }
+        }
+      },
+      "NewJob": {
+        "type": "object",
+        "required": [
+          "name",
+          "urls"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_.-]{0,62}$",
+            "description": "The job label of what it reads. `openasy` is taken."
+          },
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            },
+            "minItems": 1,
+            "maxItems": 500,
+            "description": "http:// or https:// addresses; one without a path reads /metrics."
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 3600,
+            "description": "30 unless METRICS_SCRAPE_INTERVAL_SECONDS says otherwise."
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Added to every series it reads; at most 20, not job and none starting with __."
+          },
+          "auth": {
+            "type": "string",
+            "enum": [
+              "none",
+              "bearer",
+              "basic"
+            ],
+            "default": "none"
+          },
+          "username": {
+            "type": "string",
+            "description": "For basic."
+          },
+          "secret": {
+            "type": "string",
+            "description": "The bearer token or password, sealed with the install's key. Leave it out to keep the one kept."
+          }
+        }
+      },
+      "Panel": {
+        "type": "object",
+        "required": [
+          "title",
+          "expr",
+          "unit",
+          "legend",
+          "stacked"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "expr": {
+            "type": "string",
+            "description": "PromQL; each series it returns is one line."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "none",
+              "percent",
+              "ratio",
+              "bytes",
+              "bytesPerSecond",
+              "seconds",
+              "perSecond"
+            ],
+            "description": "How values are shown: percent is 0 to 100, ratio 0 to 1 shown as a percent."
+          },
+          "legend": {
+            "type": "string",
+            "description": "How a line is named, such as {{instance}}; empty names it by its labels."
+          },
+          "stacked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NewPanel": {
+        "type": "object",
+        "required": [
+          "title",
+          "expr"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "expr": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "none",
+              "percent",
+              "ratio",
+              "bytes",
+              "bytesPerSecond",
+              "seconds",
+              "perSecond"
+            ],
+            "description": "How values are shown: percent is 0 to 100, ratio 0 to 1 shown as a percent."
+          },
+          "legend": {
+            "type": "string"
+          },
+          "stacked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "folder",
+          "description",
+          "tags",
+          "panels",
+          "builtIn",
+          "createdBy",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "panels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Panel"
+            }
+          },
+          "builtIn": {
+            "type": "boolean",
+            "description": "Comes with Metrics; it cannot be changed, only copied."
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DashboardList": {
+        "type": "object",
+        "required": [
+          "dashboards"
+        ],
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dashboard"
+            }
+          }
+        }
+      },
+      "NewDashboard": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "folder": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "panels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NewPanel"
+            },
+            "maxItems": 40
+          }
+        }
+      },
+      "MetricName": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "help",
+          "series"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "counter, gauge, histogram or summary, as the target sent it."
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its series now; null when it is not among the 1000 metrics with the most."
+          }
+        }
+      },
+      "MetricNameList": {
+        "type": "object",
+        "required": [
+          "metrics",
+          "totalSeries"
+        ],
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricName"
+            }
+          },
+          "totalSeries": {
+            "type": "integer"
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "storage",
+          "targets",
+          "jobs",
+          "products",
+          "dashboards",
+          "down"
+        ],
+        "properties": {
+          "storage": {
+            "type": "object",
+            "required": [
+              "running",
+              "activeSeries",
+              "storageBytes",
+              "freeBytes",
+              "samplesTotal",
+              "samplesPerSecond",
+              "refusedSeries",
+              "retentionDays",
+              "maxSeries"
+            ],
+            "properties": {
+              "running": {
+                "type": "boolean",
+                "description": "Whether VictoriaMetrics answers. When it does not, the numbers are 0."
+              },
+              "activeSeries": {
+                "type": "integer"
+              },
+              "storageBytes": {
+                "type": "integer"
+              },
+              "freeBytes": {
+                "type": "integer"
+              },
+              "samplesTotal": {
+                "type": "integer"
+              },
+              "samplesPerSecond": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "refusedSeries": {
+                "type": "integer",
+                "description": "New series refused by METRICS_MAX_SERIES since VictoriaMetrics started."
+              },
+              "retentionDays": {
+                "type": "integer"
+              },
+              "maxSeries": {
+                "type": "integer"
+              }
+            }
+          },
+          "targets": {
+            "type": "object",
+            "required": [
+              "up",
+              "down",
+              "unknown"
+            ],
+            "properties": {
+              "up": {
+                "type": "integer"
+              },
+              "down": {
+                "type": "integer"
+              },
+              "unknown": {
+                "type": "integer"
+              }
+            }
+          },
+          "jobs": {
+            "type": "integer"
+          },
+          "products": {
+            "type": "integer",
+            "description": "OpenAsy products scraped, besides Metrics itself."
+          },
+          "dashboards": {
+            "type": "integer"
+          },
+          "down": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Target"
+            },
+            "description": "Targets down, at most 20."
+          }
+        }
+      },
+      "PrometheusResponse": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error"
+            ]
+          },
+          "data": {},
+          "errorType": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stats": {}
+        },
+        "description": "As Prometheus' HTTP API answers: https://prometheus.io/docs/prometheus/latest/querying/api/"
+      }
+    }
+  }
+}

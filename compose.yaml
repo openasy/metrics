@@ -1,0 +1,41 @@
+# Metrics. It scrapes every OpenAsy product's /metrics and the exporters you add, keeps the series in VictoriaMetrics
+# inside its one container, and answers PromQL for its dashboards, Grafana and vmalert (ADR 0063).
+#
+#   openssl rand -hex 32 > openasy-kek   # Metrics' key: sign-in secrets and the passwords of scrape jobs (ADR 0021). Keep it with your backups
+#   docker compose up -d
+#   docker compose logs metrics | grep 'no owner yet'   # the one-time link that creates the owner account
+services:
+  metrics:
+    image: ghcr.io/openasy/metrics:0.1.0
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp] # the scrape config and the secret files of jobs; never on the volume
+    ports:
+      - "127.0.0.1:8080:8080" # UI, API and PromQL; put a TLS proxy in front to reach it from elsewhere
+    volumes:
+      - metrics-data:/data # SQLite (jobs, dashboards, people) and VictoriaMetrics' storage
+    secrets:
+      - openasy-kek # mounted at /run/secrets/openasy-kek
+    environment:
+      # The address people open Metrics at; with a TLS proxy in front, its https:// URL.
+      METRICS_PUBLIC_URL: ${METRICS_PUBLIC_URL:-http://localhost:8080}
+      # The install's OpenAsy products: each is scraped at its /metrics.
+      OPENASY_PRODUCTS: ${OPENASY_PRODUCTS:-}
+      # For OpenTelemetry collectors and Prometheus remote write: it can push samples and nothing else.
+      METRICS_INGEST_TOKEN: ${METRICS_INGEST_TOKEN:-}
+      # How long series are kept, and how many new series an hour are taken:
+      # METRICS_RETENTION_DAYS: "30"
+      # METRICS_MAX_SERIES: "1000000"
+      # Sign in with your identity provider (OIDC), see the README:
+      # OPENASY_OIDC_ISSUER: https://login.example.com
+      # OPENASY_OIDC_CLIENT_ID: metrics
+      # OPENASY_OIDC_CLIENT_SECRET: ${OPENASY_OIDC_CLIENT_SECRET}
+
+volumes:
+  metrics-data:
+
+secrets:
+  openasy-kek:
+    file: ./openasy-kek
