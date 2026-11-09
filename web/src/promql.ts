@@ -2,6 +2,7 @@
 // and its values on one time axis.
 import { formatBytes, formatDuration, type TimeSeries } from "@openasy/ui";
 import type { Matrix, Unit } from "./api.ts";
+import { viewerLocale } from "./i18n.ts";
 
 export const RANGES: Record<string, number> = { "15m": 900, "1h": 3600, "6h": 21_600, "24h": 86_400, "7d": 604_800, "30d": 2_592_000 };
 /** About this many points per line, whatever the range. */
@@ -31,7 +32,7 @@ export function seriesName(metric: Record<string, string>, legend = ""): string 
 
 const time = (seconds: number, long: boolean) =>
   new Date(seconds * 1000).toLocaleString(
-    undefined,
+    viewerLocale(),
     long ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" },
   );
 
@@ -60,7 +61,8 @@ export function toChart(m: Matrix, range: string, legend = "", now = Date.now())
 }
 
 /** Up to three significant digits, without a long tail. */
-const round = (v: number) => (Math.abs(v) >= 1000 || Number.isInteger(v) ? Math.round(v).toLocaleString() : Number(v.toPrecision(3)).toLocaleString());
+const round = (v: number) =>
+  Math.abs(v) >= 1000 || Number.isInteger(v) ? Math.round(v).toLocaleString(viewerLocale()) : Number(v.toPrecision(3)).toLocaleString(viewerLocale());
 
 /** How a value of a unit is written. */
 export function formatter(unit: Unit): (v: number) => string {

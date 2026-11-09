@@ -58,7 +58,7 @@ describe("units", () => {
   it("write values as people read them", () => {
     expect(formatter("ratio")(0.4567)).toBe("45.7%");
     expect(formatter("seconds")(0.0421)).toBe("42.1 ms");
-    expect(formatter("perSecond")(1240.4)).toBe(`${(1240).toLocaleString()}/s`);
-    expect(formatter("none")(0.123456)).toBe((0.123).toLocaleString());
+    expect(formatter("perSecond")(1240.4)).toBe(`1,240/s`);
+    expect(formatter("none")(0.123456)).toBe("0.123");
   });
 });

@@ -25,7 +25,7 @@
 .metrics-history {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   padding: 0.5rem 0.75rem;
   border: 0;
   border-top: 1px solid var(--oa-line);

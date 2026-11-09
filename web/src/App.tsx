@@ -75,7 +75,7 @@ import {
   type Target,
   type Unit,
 } from "./api.ts";
-import { useT } from "./i18n.ts";
+import { useT, viewerLocale, setViewerLocale } from "./i18n.ts";
 import { formatter, rangePath, toChart } from "./promql.ts";
 import { search } from "./search.ts";
 
@@ -129,7 +129,7 @@ function useList<T>(call: Call, path: string, key: string) {
   return [items, load] as const;
 }
 
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const when = (iso: string) => new Date(iso).toLocaleString(viewerLocale(), { dateStyle: "medium", timeStyle: "short" });
 const labelText = (labels: Record<string, string>) =>
   Object.entries(labels)
     .map(([k, v]) => `${k}=${v}`)
@@ -1373,6 +1373,7 @@ export function App() {
   const installBrand = useInstallBrand();
   const [theme] = useThemePreference();
   const [locale] = useLocalePreference();
+  setViewerLocale(locale);
   return (
     // The install's brand from config/brand.env (ADR 0053); OpenAsy's own look where it sets none.
     <BrandProvider theme={theme} locale={locale} brand={{ name: "OpenAsy", organization: undefined, ...installBrand }} className="min-h-screen">
