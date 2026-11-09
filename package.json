@@ -1,6 +1,6 @@
 {
   "name": "@openasy/metrics",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "OpenAsy Metrics: the numbers behind your systems, scraped, kept in VictoriaMetrics and graphed, with PromQL for Grafana and every Prometheus-speaking tool.",
   "license": "AGPL-3.0-only",
